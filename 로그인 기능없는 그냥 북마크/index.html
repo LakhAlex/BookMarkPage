@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>비주얼 레퍼런스 대시보드 (서버 분리형)</title>
+    <script defer src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 요구하신 완벽한 2줄 말줄임표 브라우저 호환성 선언 */
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;  
+            -webkit-line-clamp: 2;
+            overflow: hidden;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50 text-gray-800 flex flex-col font-sans relative overflow-x-hidden">
+
+    <div id="current-time" class="absolute top-4 left-4 text-xs font-mono font-semibold bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100 z-30">
+        🕒 로딩 중...
+    </div>
+
+    <button id="sidebar-toggle" class="fixed top-4 right-4 z-50 px-4 py-1.5 bg-white rounded-full shadow-md border border-gray-200 text-xs font-bold transition-all duration-300 hover:bg-gray-50">
+        👉 북마크 닫기
+    </button>
+
+    <div class="flex-1 flex pt-16">
+        
+        <div id="main-content" class="flex-1 flex flex-col items-center px-8 transition-all duration-300 mr-80">
+            
+            <div class="w-full max-w-xl mt-12 flex flex-col items-center relative">
+                
+                <div id="search-toggle-bar" class="flex items-center mb-3 bg-gray-200 p-1 rounded-full w-48 relative shadow-inner cursor-pointer select-none">
+                    <div id="toggle-glider" class="absolute top-1 bottom-1 left-1 bg-white rounded-full w-[92px] shadow transition-transform duration-300"></div>
+                    <span id="toggle-google" class="z-10 text-xs font-bold w-1/2 text-center text-blue-600 transition-colors">Google 검색</span>
+                    <span id="toggle-bookmark" class="z-10 text-xs font-bold w-1/2 text-center text-gray-500 transition-colors">북마크 검색</span>
+                </div>
+
+                <div class="w-full relative shadow-md rounded-xl">
+                    <input
+                        type="text"
+                        id="search-input"
+                        class="w-full px-5 py-3.5 pl-12 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
+                        placeholder="Google 종합 검색어 입력..."
+                    />
+                    <span class="absolute left-4 top-3.5 text-gray-400">🔍</span>
+                </div>
+
+                <div id="search-suggestions" class="absolute top-full left-0 right-0 bg-white mt-1.5 rounded-xl border border-gray-100 shadow-xl z-50 max-h-60 overflow-y-auto hidden"></div>
+            </div>
+
+            <div class="w-full max-w-5xl mt-16 mb-12 flex-1 flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
+                        📂 북마크 모음
+                        <span id="reference-count" class="text-xs font-normal text-gray-400">(0)</span>
+                    </h2>
+                    <button id="open-modal-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-medium shadow transition-colors">+ 북마크 추가</button>
+                </div>
+
+                <div id="empty-view" class="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl p-12 bg-white/50">
+                    <p class="text-gray-400 text-xs">서버에서 북마크 데이터를 불러오는 중이거나 목록이 비어있습니다.</p>
+                </div>
+
+                <div id="reference-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 hidden"></div>
+            </div>
+        </div>
+
+        <div id="sidebar" class="fixed top-0 right-0 h-full w-80 bg-white border-l border-gray-200 shadow-xl p-6 pt-20 transition-transform duration-300 z-40 transform translate-x-0">
+            <div class="mb-6">
+                <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">고정 고속 이동 (메인 퀵 링크)</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <a href="https://www.youtube.com" target="_blank" class="flex flex-col items-center p-3 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-100 transition-colors text-center">
+                        <img src="https://www.youtube.com/favicon.ico" alt="" class="w-5 h-5 mb-1 flex-shrink-0" loading="lazy" onerror="this.src='https://via.placeholder.com/16'">
+                        <span class="text-[11px] font-semibold text-gray-700 truncate w-full">유튜브 메인</span>
+                    </a>
+                    <a href="https://www.instagram.com" target="_blank" class="flex flex-col items-center p-3 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-100 transition-colors text-center">
+                        <img src="https://www.google.com/s2/favicons?domain=instagram.com&sz=32" alt="" class="w-5 h-5 mb-1 flex-shrink-0" loading="lazy" onerror="this.src='https://via.placeholder.com/16'">
+                        <span class="text-[11px] font-semibold text-gray-700 truncate w-full">인스타그램 메인</span>
+                    </a>
+                    <a href="https://www.google.com/" target="_blank" class="flex flex-col items-center p-3 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-100 transition-colors text-center">
+                        <img src="https://www.google.com/favicon.ico" alt="" class="w-5 h-5 mb-1 flex-shrink-0" loading="lazy" onerror="this.src='https://via.placeholder.com/16'">
+                        <span class="text-[11px] font-semibold text-gray-700 truncate w-full">유튜브 메인</span>
+                    </a>
+                    <a href="https://www.reddit.com/" target="_blank" class="flex flex-col items-center p-3 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-100 transition-colors text-center">
+                        <img src="https://www.reddit.com//favicon.ico" alt="" class="w-5 h-5 mb-1 flex-shrink-0" loading="lazy" onerror="this.src='https://via.placeholder.com/16'">
+                        <span class="text-[11px] font-semibold text-gray-700 truncate w-full">인스타그램 메인</span>
+                    </a>
+                </div>
+            </div>
+            <hr class="border-gray-100 my-4" />
+            <div>
+                <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">전체 사이트 간편 가기</h3>
+                <div id="sidebar-list" class="flex flex-col gap-1 overflow-y-auto max-h-[65vh]"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-layer" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <h3 class="text-sm font-bold text-gray-900 mb-4">새로운 비주얼 레퍼런스 추가</h3>
+            <div class="flex flex-col gap-3">
+                <div>
+                    <label class="text-[11px] font-semibold text-gray-500 block mb-1">사이트 주소 (URL)</label>
+                    <input type="text" id="modal-url-input" placeholder="https://example.com 또는 유튜브 링크" class="w-full border border-gray-200 rounded-lg p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-gray-500 block mb-1">사용자 지정 이름 (공백 시 자동 크롤링)</label>
+                    <input type="text" id="modal-name-input" placeholder="지정하지 않으면 서버가 타이틀을 자동 분석합니다." class="w-full border border-gray-200 rounded-lg p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <button id="close-modal-btn" class="px-4 py-2 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100">취소</button>
+                <button id="submit-bookmark-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium shadow">추가하기</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 같은 도메인의 API를 사용합니다. 로컬과 Vercel 배포 환경 모두에서 동작합니다.
+        const BACKEND_HOST = '';
+
+        let bookmarks = [];
+        let isBookmarkMode = false;
+        let isSidebarOpen = true;
+
+        // DOM 할당
+        const timeEl = document.getElementById('current-time');
+        const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+        const sidebarEl = document.getElementById('sidebar');
+        const mainContentEl = document.getElementById('main-content');
+        const searchInput = document.getElementById('search-input');
+        const searchToggleBar = document.getElementById('search-toggle-bar');
+        const toggleGlider = document.getElementById('toggle-glider');
+        const toggleGoogle = document.getElementById('toggle-google');
+        const toggleBookmark = document.getElementById('toggle-bookmark');
+        const searchSuggestions = document.getElementById('search-suggestions');
+        const modalLayer = document.getElementById('modal-layer');
+        const openModalBtn = document.getElementById('open-modal-btn');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const submitBookmarkBtn = document.getElementById('submit-bookmark-btn');
+        const modalUrlInput = document.getElementById('modal-url-input');
+        const modalNameInput = document.getElementById('modal-name-input');
+        const referenceGrid = document.getElementById('reference-grid');
+        const emptyView = document.getElementById('empty-view');
+        const referenceCount = document.getElementById('reference-count');
+        const sidebarList = document.getElementById('sidebar-list');
+
+        // 1. 실시간 시간 타이머
+        function startClock() {
+            const updateClock = () => {
+                const now = new Date();
+                timeEl.textContent = `🕒 ${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} - ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            };
+            updateClock();
+            setInterval(updateClock, 60000);
+        }
+
+        // 2. 우측 사이드바 제어
+        sidebarToggleBtn.addEventListener('click', () => {
+            isSidebarOpen = !isSidebarOpen;
+            if (isSidebarOpen) {
+                sidebarEl.classList.remove('translate-x-full');
+                mainContentEl.classList.add('mr-80');
+                sidebarToggleBtn.textContent = '👉 북마크 닫기';
+            } else {
+                sidebarEl.classList.add('translate-x-full');
+                mainContentEl.classList.remove('mr-80');
+                sidebarToggleBtn.textContent = '👈 북마크 열기';
+            }
+        });
+
+        // 3. 검색 모드 토글 스위치
+        searchToggleBar.addEventListener('click', () => {
+            isBookmarkMode = !isBookmarkMode;
+            if (isBookmarkMode) {
+                toggleGlider.classList.add('translate-x-[92px]');
+                toggleGoogle.classList.replace('text-blue-600', 'text-gray-500');
+                toggleBookmark.classList.replace('text-gray-500', 'text-blue-600');
+                searchInput.placeholder = "저장한 레퍼런스 명칭이나 주소 실시간 검색...";
+            } else {
+                toggleGlider.classList.remove('translate-x-[92px]');
+                toggleGoogle.classList.replace('text-gray-500', 'text-blue-600');
+                toggleBookmark.classList.replace('text-blue-600', 'text-gray-500');
+                searchInput.placeholder = "Google 종합 검색어 입력...";
+                searchSuggestions.classList.add('hidden');
+            }
+            searchInput.value = '';
+        });
+
+        // 4. 엔터 입력 가동
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && searchInput.value.trim() !== '') {
+                const query = searchInput.value.trim();
+                if (!isBookmarkMode) {
+                    window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
+                } else {
+                    const matched = getFilteredBookmarks(query);
+                    if (matched.length > 0) {
+                        window.open(matched[0].url, '_blank');
+                        searchSuggestions.classList.add('hidden');
+                    }
+                }
+            }
+        });
+
+        // 실시간 타이핑 자동완성 매칭
+        searchInput.addEventListener('input', () => {
+            if (!isBookmarkMode) return;
+            const query = searchInput.value.trim();
+            const matched = getFilteredBookmarks(query);
+
+            if (matched.length === 0) {
+                searchSuggestions.classList.add('hidden');
+                return;
+            }
+
+            searchSuggestions.innerHTML = '';
+            matched.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "px-4 py-3 hover:bg-gray-50 flex items-center gap-3 cursor-pointer transition-colors border-b border-gray-50 last:border-0";
+                div.innerHTML = `
+                    <img src="${item.thumbnailUrl}" alt="" class="w-7 h-5 object-cover rounded bg-gray-100 flex-shrink-0" onerror="this.src='https://via.placeholder.com/100x60?text=No+Img'">
+                    <div class="truncate">
+                        <p class="text-xs font-semibold text-gray-900 truncate">${item.title}</p>
+                        <p class="text-[10px] text-gray-400 truncate">${item.url}</p>
+                    </div>
+                `;
+                div.addEventListener('click', () => {
+                    window.open(item.url, '_blank');
+                    searchSuggestions.classList.add('hidden');
+                    searchInput.value = '';
+                });
+                searchSuggestions.appendChild(div);
+            });
+            searchSuggestions.classList.remove('hidden');
+        });
+
+        function getFilteredBookmarks(query) {
+            if (!query) return [];
+            const lowQuery = query.toLowerCase();
+            return bookmarks.filter(b => b.title.toLowerCase().includes(lowQuery) || b.url.toLowerCase().includes(lowQuery));
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !searchSuggestions.contains(e.target)) {
+                searchSuggestions.classList.add('hidden');
+            }
+        });
+
+        // 5. 모달 개폐
+        openModalBtn.addEventListener('click', () => modalLayer.classList.remove('hidden'));
+        closeModalBtn.addEventListener('click', () => {
+            modalLayer.classList.add('hidden');
+            modalUrlInput.value = '';
+            modalNameInput.value = '';
+        });
+
+        // 🌐 6. 백엔드 연동 데이터 원격 수집 (가져오기)
+        async function fetchBookmarksFromServer() {
+            try {
+                const res = await fetch(`${BACKEND_HOST}/api/bookmarks`);
+                if (res.ok) {
+                    bookmarks = await res.json();
+                    renderUI();
+                }
+            } catch (err) {
+                console.error("서버에서 목록을 가져올 수 없습니다:", err);
+            }
+        }
+
+        // 🌐 7. 백엔드 연동 신규 등록 (추가)
+        submitBookmarkBtn.addEventListener('click', async () => {
+            const url = modalUrlInput.value.trim();
+            const customName = modalNameInput.value.trim();
+
+            if (!url) return alert('URL 주소를 넣어주세요.');
+
+            submitBookmarkBtn.disabled = true;
+            submitBookmarkBtn.textContent = '서버 분석 중...';
+
+            try {
+                const res = await fetch(`${BACKEND_HOST}/api/bookmarks`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, customName })
+                });
+
+                if (res.ok) {
+                    await fetchBookmarksFromServer(); // 성공 시 목록 리로드
+                    modalLayer.classList.add('hidden');
+                    modalUrlInput.value = '';
+                    modalNameInput.value = '';
+                } else {
+                    alert('서버 등록에 실패했습니다.');
+                }
+            } catch (err) {
+                alert('백엔드 서버가 연결되어 있지 않습니다.');
+            } finally {
+                submitBookmarkBtn.disabled = false;
+                submitBookmarkBtn.textContent = '추가하기';
+            }
+        });
+
+        // 🌐 8. 백엔드 연동 원격 삭제
+        window.deleteBookmark = async function(id, event) {
+            event.stopPropagation();
+            if (!confirm('이 북마크를 모든 유저 화면에서 삭제하시겠습니까?')) return;
+
+            try {
+                const res = await fetch(`${BACKEND_HOST}/api/bookmarks/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    await fetchBookmarksFromServer();
+                }
+            } catch (err) {
+                alert('서버와 통신할 수 없습니다.');
+            }
+        }
+
+        // 9. 화면 동적 그리기 통합 함수
+        function renderUI() {
+            referenceCount.textContent = `(${bookmarks.length})`;
+            
+            if (bookmarks.length === 0) {
+                emptyView.classList.remove('hidden');
+                referenceGrid.classList.add('hidden');
+            } else {
+                emptyView.classList.add('hidden');
+                referenceGrid.classList.remove('hidden');
+                
+                referenceGrid.innerHTML = '';
+                bookmarks.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = "bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col group relative";
+                    card.innerHTML = `
+                        <div class="aspect-video w-full bg-gray-50 relative overflow-hidden border-b border-gray-50">
+                            <img src="${item.thumbnailUrl}" alt="" class="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300" loading="lazy" onerror="this.src='https://via.placeholder.com/300x180?text=No+Thumbnail'">
+                        </div>
+                        <div class="p-4 flex-1 flex flex-col justify-between">
+                            <h3 class="text-xs font-bold text-gray-800 line-clamp-2 mb-1 group-hover:text-blue-600 transition-colors">${item.title}</h3>
+                            <p class="text-[10px] text-gray-400 truncate">${item.url}</p>
+                        </div>
+                        <button onclick="deleteBookmark('${item.id}', event)" class="absolute top-2 right-2 bg-black/60 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[9px] opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                    `;
+                    card.addEventListener('click', () => window.open(item.url, '_blank'));
+                    referenceGrid.appendChild(card);
+                });
+            }
+
+            sidebarList.innerHTML = '';
+            if (bookmarks.length === 0) {
+                sidebarList.innerHTML = `<p class="text-[10px] text-gray-400 p-2 text-center">목록이 비어있습니다.</p>`;
+            } else {
+                bookmarks.forEach(item => {
+                    const a = document.createElement('a');
+                    a.href = item.url;
+                    a.target = "_blank";
+                    a.className = "flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg text-[11px] font-medium text-gray-600 truncate transition-colors";
+                    a.innerHTML = `
+                        <img src="${item.thumbnailUrl}" alt="" class="w-4 h-3 rounded-sm object-cover flex-shrink-0" onerror="this.src='https://via.placeholder.com/16'">
+                        <span class="truncate">${item.title}</span>
+                    `;
+                    sidebarList.appendChild(a);
+                });
+            }
+        }
+
+        // 초기 시작점
+        startClock();
+        fetchBookmarksFromServer();
+    </script>
+</body>
+</html>

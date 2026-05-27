@@ -1,0 +1,102 @@
+# Dependencies
+node_modules/
+
+# Python virtual environments
+venv/
+.venv/
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# Vercel local files
+.vercel/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+pnpm-debug.log*
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Local JSON database / OAuth secrets
+bookmarks.json
+client_secret*.json
+credentials*.json
+token*.json
+
+# Test / build / cache output
+coverage/
+*.lcov
+.nyc_output/
+lib-cov/
+build/Release/
+dist/
+out/
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.temp/
+.serverless/
+.webpack/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+*.tgz
+.yarn-integrity
+
+# Additional package manager / frontend dependency caches
+jspm_packages/
+web_modules/
+bower_components/
+.npm/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Supabase CLI local state
+supabase/.branches
+supabase/.temp
+
+# OS / editor
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+[Dd]esktop.ini
+.DS_Store
+.vscode/
+.idea/
+.history/
+.ionide
+*.vsix
+
+# Windows local files
+$RECYCLE.BIN/
+*.stackdump
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Local archives
+*.zip
