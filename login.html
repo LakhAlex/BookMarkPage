@@ -261,7 +261,7 @@
   <script>
     /* ── 설정 ─────────────────────────────────── */
     const BACKEND_HOST = window.location.origin;  // 같은 서버
-    const INDEX_PAGE   = '/index.html';
+    const INDEX_PAGE   = '/app';
     let supabaseClientPromise = null;
 
     /* ── 페이지 진입: 토큰 자동 확인 ───────────── */
@@ -319,7 +319,7 @@
 
         const { error } = await client.auth.signInWithOAuth({
           provider: 'google',
-          options: { redirectTo: `${window.location.origin}/login.html` }
+          options: { redirectTo: `${window.location.origin}/login` }
         });
         if (error) throw error;
       } catch (err) {
@@ -356,7 +356,7 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         await res.json();
-        window.history.replaceState({}, document.title, '/login.html');
+        window.history.replaceState({}, document.title, '/login');
         redirectToIndex();
         return true;
       } catch (err) {
@@ -458,7 +458,7 @@
       }
     }
 
-    /* ── index.html로 이동 (퇴장 애니메이션) ────── */
+    /* ── 앱 화면으로 이동 (퇴장 애니메이션) ────── */
     function redirectToIndex() {
       const card = document.getElementById('login-card');
       card.classList.add('fade-out');
