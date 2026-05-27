@@ -295,9 +295,15 @@
         if (!configRes.ok) throw new Error(`Config HTTP ${configRes.status}`);
         const config = await configRes.json();
         if (!config.supabaseEnabled) {
+          console.error('[Supabase 설정 응답]', config);
           const missing = Array.isArray(config.supabaseMissing) && config.supabaseMissing.length
             ? ` Missing: ${config.supabaseMissing.join(', ')}`
-            : '';
+            : ` Config: ${JSON.stringify({
+                supabaseEnabled: config.supabaseEnabled,
+                supabaseServerEnabled: config.supabaseServerEnabled,
+                hasSupabaseUrl: Boolean(config.supabaseUrl),
+                hasSupabaseAnonKey: Boolean(config.supabaseAnonKey)
+              })}`;
           throw new Error(`Supabase browser config is not configured.${missing}`);
         }
 
@@ -386,9 +392,10 @@
       const message = String(err?.message || '');
       if (message.includes('Supabase browser config is not configured')) {
         const missing = message.match(/Missing: (.+)$/)?.[1];
+        const config = message.match(/Config: (.+)$/)?.[1];
         return missing
           ? `Render에 Supabase 환경 변수가 반영되지 않았습니다: ${missing}`
-          : 'Supabase 환경 변수가 아직 설정되지 않았습니다.';
+          : `Supabase 설정을 읽었지만 활성화되지 않았습니다. ${config || '/api/config 응답을 확인해주세요.'}`;
       }
       return fallback;
     }
