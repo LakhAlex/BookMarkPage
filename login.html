@@ -385,8 +385,9 @@
     function getSupabaseSetupError(err, fallback) {
       const message = String(err?.message || '');
       if (message.includes('Supabase browser config is not configured')) {
-        return message.includes('SUPABASE_ANON_KEY')
-          ? 'Render에 SUPABASE_ANON_KEY 환경 변수가 설정되지 않았거나 재배포에 반영되지 않았습니다.'
+        const missing = message.match(/Missing: (.+)$/)?.[1];
+        return missing
+          ? `Render에 Supabase 환경 변수가 반영되지 않았습니다: ${missing}`
           : 'Supabase 환경 변수가 아직 설정되지 않았습니다.';
       }
       return fallback;
