@@ -291,9 +291,15 @@
       if (supabaseClientPromise) return supabaseClientPromise;
 
       supabaseClientPromise = (async () => {
-        const configRes = await fetch(`${BACKEND_HOST}/api/config`);
+        const configRes = await fetch(`${BACKEND_HOST}/api/config`, { credentials: 'same-origin' });
+        if (!configRes.ok) throw new Error(`Config HTTP ${configRes.status}`);
         const config = await configRes.json();
-        if (!config.supabaseEnabled) return null;
+        if (!config.supabaseEnabled) {
+          const missing = Array.isArray(config.supabaseMissing) && config.supabaseMissing.length
+            ? ` Missing: ${config.supabaseMissing.join(', ')}`
+            : '';
+          throw new Error(`Supabase browser config is not configured.${missing}`);
+        }
 
         const mod = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
         return mod.createClient(config.supabaseUrl, config.supabaseAnonKey, {
@@ -303,7 +309,10 @@
             autoRefreshToken: true
           }
         });
-      })();
+      })().catch(err => {
+        supabaseClientPromise = null;
+        throw err;
+      });
 
       return supabaseClientPromise;
     }
@@ -314,11 +323,6 @@
 
       try {
         const client = await getSupabaseClient();
-        if (!client) {
-          showError('error-login', 'Supabase 환경 변수가 아직 설정되지 않았습니다.');
-          setLoading('btn-google-login', false, '<span class="google-mark">G</span> Google 계정으로 계속하기');
-          return;
-        }
 
         const { error } = await client.auth.signInWithOAuth({
           provider: 'google',
@@ -327,7 +331,7 @@
         if (error) throw error;
       } catch (err) {
         console.error('[Google 로그인 실패]', err);
-        showError('error-login', 'Google 로그인 시작에 실패했습니다.');
+        showError('error-login', getSupabaseSetupError(err, 'Google 로그인 시작에 실패했습니다.'));
         setLoading('btn-google-login', false, '<span class="google-mark">G</span> Google 계정으로 계속하기');
       }
     }
@@ -342,12 +346,20 @@
 
       try {
         const client = await getSupabaseClient();
-        if (!client) throw new Error('Supabase is not configured');
 
-        const { data, error } = await client.auth.getSession();
-        if (error) throw error;
+        let sessionData = null;
+        if (window.location.search.includes('code=')) {
+          const code = new URLSearchParams(window.location.search).get('code');
+          const { data, error } = await client.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+          sessionData = data;
+        } else {
+          const { data, error } = await client.auth.getSession();
+          if (error) throw error;
+          sessionData = data;
+        }
 
-        const accessToken = data?.session?.access_token;
+        const accessToken = sessionData?.session?.access_token;
         if (!accessToken) throw new Error('No Supabase session');
 
         const res = await fetch(`${BACKEND_HOST}/api/auth/supabase`, {
@@ -364,10 +376,20 @@
         return true;
       } catch (err) {
         console.error('[OAuth 콜백 처리 실패]', err);
-        showError('error-login', 'Google 로그인 완료 처리에 실패했습니다.');
+        showError('error-login', getSupabaseSetupError(err, 'Google 로그인 완료 처리에 실패했습니다.'));
         setLoading('btn-google-login', false, '<span class="google-mark">G</span> Google 계정으로 계속하기');
         return false;
       }
+    }
+
+    function getSupabaseSetupError(err, fallback) {
+      const message = String(err?.message || '');
+      if (message.includes('Supabase browser config is not configured')) {
+        return message.includes('SUPABASE_ANON_KEY')
+          ? 'Render에 SUPABASE_ANON_KEY 환경 변수가 설정되지 않았거나 재배포에 반영되지 않았습니다.'
+          : 'Supabase 환경 변수가 아직 설정되지 않았습니다.';
+      }
+      return fallback;
     }
 
     /* ── 에러 표시/숨김 ─────────────────────────── */
