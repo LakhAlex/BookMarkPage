@@ -261,7 +261,6 @@
   <script>
     /* ── 설정 ─────────────────────────────────── */
     const BACKEND_HOST = window.location.origin;  // 같은 서버
-    const TOKEN_KEY    = 'bookmark_auth_token';
     const INDEX_PAGE   = '/index.html';
     let supabaseClientPromise = null;
 
@@ -270,20 +269,15 @@
       const handledOAuth = await handleSupabaseCallback();
       if (handledOAuth) return;
 
-      const token = localStorage.getItem(TOKEN_KEY);
-      if (!token) return;
-
       try {
         const res = await fetch(`${BACKEND_HOST}/api/auth/verify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token })
+          credentials: 'same-origin'
         });
         if (res.ok) {
           document.getElementById('login-card').style.visibility = 'hidden';
           redirectToIndex();
-        } else {
-          localStorage.removeItem(TOKEN_KEY);
         }
       } catch (e) {
         console.warn('[토큰 검증 실패]', e);
@@ -356,12 +350,12 @@
         const res = await fetch(`${BACKEND_HOST}/api/auth/supabase`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
           body: JSON.stringify({ accessToken })
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-        const { token } = await res.json();
-        localStorage.setItem(TOKEN_KEY, token);
+        await res.json();
         window.history.replaceState({}, document.title, '/login.html');
         redirectToIndex();
         return true;
@@ -422,12 +416,12 @@
         const res = await fetch(`${BACKEND_HOST}/api/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
           body: JSON.stringify({ type: 'nickname', nickname })
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-        const { token } = await res.json();
-        localStorage.setItem(TOKEN_KEY, token);
+        await res.json();
         redirectToIndex();
       } catch (err) {
         console.error(err);
@@ -450,12 +444,12 @@
         const res = await fetch(`${BACKEND_HOST}/api/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
           body: JSON.stringify({ type: 'keyfile', keyContent })
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-        const { token } = await res.json();
-        localStorage.setItem(TOKEN_KEY, token);
+        await res.json();
         redirectToIndex();
       } catch (err) {
         console.error(err);
