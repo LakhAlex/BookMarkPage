@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>로그인 — 비주얼 레퍼런스</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── 리셋 & 기본 ────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-from:   #0f0c29;
+      --bg-mid:    #1a1a4e;
+      --bg-to:     #24243e;
+      --accent:    #7c6af7;
+      --accent2:   #56cffc;
+      --glass-bg:  rgba(255,255,255,0.05);
+      --glass-bdr: rgba(255,255,255,0.12);
+      --text:      #f0f0ff;
+      --text-mute: rgba(240,240,255,0.45);
+      --error:     #ff6b8a;
+      --radius:    16px;
+    }
+
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: linear-gradient(135deg, var(--bg-from), var(--bg-mid), var(--bg-to));
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      color: var(--text);
+    }
+
+    /* ── 배경 오브 (빛 번짐) ───────────────────── */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .orb-1 {
+      width: 500px; height: 500px;
+      top: -120px; left: -100px;
+      background: radial-gradient(circle, rgba(124,106,247,0.35) 0%, transparent 70%);
+      animation: float1 8s ease-in-out infinite;
+    }
+    .orb-2 {
+      width: 400px; height: 400px;
+      bottom: -80px; right: -60px;
+      background: radial-gradient(circle, rgba(86,207,252,0.25) 0%, transparent 70%);
+      animation: float2 10s ease-in-out infinite;
+    }
+    @keyframes float1 {
+      0%,100% { transform: translate(0,0) scale(1); }
+      50%      { transform: translate(30px, 20px) scale(1.05); }
+    }
+    @keyframes float2 {
+      0%,100% { transform: translate(0,0) scale(1); }
+      50%      { transform: translate(-20px, -30px) scale(1.08); }
+    }
+
+    /* ── 카드 ──────────────────────────────────── */
+    .card {
+      position: relative; z-index: 10;
+      width: 420px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-bdr);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      border-radius: 24px;
+      padding: 44px 40px 40px;
+      box-shadow:
+        0 40px 80px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.1);
+      animation: slideUp 0.55s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(32px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .card.fade-out {
+      animation: fadeOut 0.4s cubic-bezier(0.4,0,1,1) forwards;
+    }
+    @keyframes fadeOut {
+      to { opacity: 0; transform: scale(1.04); }
+    }
+
+    /* ── 헤더 ──────────────────────────────────── */
+    .brand {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 6px;
+    }
+    .brand-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .brand-name {
+      font-family: 'Space Mono', monospace;
+      font-weight: 700; font-size: 20px;
+      letter-spacing: -0.3px;
+      color: var(--text);
+    }
+    .card-title {
+      font-size: 24px; font-weight: 900;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+    .card-subtitle {
+      font-size: 14px; color: var(--text-mute);
+      margin-bottom: 32px; line-height: 1.6;
+    }
+
+    /* ── 라벨 & 입력 ────────────────────────────── */
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block; font-size: 15px; font-weight: 700;
+      color: var(--text-mute); letter-spacing: 0.8px;
+      text-transform: uppercase; margin-bottom: 7px;
+    }
+    .field input[type="text"] {
+      width: 100%;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid var(--glass-bdr);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 13px; color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .field input[type="text"]::placeholder { color: var(--text-mute); }
+    .field input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(124,106,247,0.2);
+    }
+
+    /* ── 버튼 ──────────────────────────────────── */
+    .btn {
+      width: 100%;
+      padding: 13px;
+      border-radius: 10px;
+      border: none; cursor: pointer;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 13px; font-weight: 700;
+      transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #6359e0);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(124,106,247,0.35);
+    }
+    .btn-primary:hover:not(:disabled) {
+      box-shadow: 0 6px 28px rgba(124,106,247,0.5);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid var(--glass-bdr);
+      color: var(--text);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(255,255,255,0.12);
+    }
+    .btn-google {
+      background: #fff;
+      color: #1f2937;
+      border: 1px solid rgba(255,255,255,0.45);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.16);
+      margin-bottom: 18px;
+    }
+    .btn-google:hover:not(:disabled) {
+      background: #f7f7fb;
+      transform: translateY(-1px);
+    }
+    .google-mark {
+      width: 18px; height: 18px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-family: Arial, sans-serif; font-size: 15px; font-weight: 700;
+      color: #4285f4;
+    }
+
+    /* ── 파일 업로드 ────────────────────────────── */
+    .file-area {
+      border: 1px dashed var(--glass-bdr);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      margin-bottom: 14px;
+    }
+    .file-area:hover { border-color: var(--accent2); background: rgba(86,207,252,0.05); }
+    .file-area.has-file { border-color: var(--accent); background: rgba(124,106,247,0.07); }
+    .file-area input[type="file"] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer;
+    }
+    .file-label { font-size: 14x; color: var(--text-mute); pointer-events: none; }
+    .file-label strong { color: var(--accent2); display: block; font-size: 13px; margin-bottom: 3px; }
+
+    /* ── 구분선 ─────────────────────────────────── */
+    .divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 22px 0;
+    }
+    .divider hr { flex: 1; border: none; border-top: 1px solid var(--glass-bdr); }
+    .divider span {
+      font-size: 11px; color: var(--text-mute);
+      white-space: nowrap; font-weight: 600;
+    }
+
+    /* ── 에러 메시지 ─────────────────────────────── */
+    .error-msg {
+      font-size: 11px; color: var(--error);
+      margin-top: 6px; display: none;
+    }
+
+    /* ── 로딩 스피너 ─────────────────────────────── */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="card" id="login-card">
+    <!-- 브랜드 헤더 -->
+    <div class="brand">
+      <div class="brand-icon">📌</div>
+      <span class="brand-name">BookMark Page</span>
+    </div>
+    <h1 class="card-title">시작하기</h1>
+    <p class="card-subtitle">Google 계정으로 간편하게 시작하세요.<br>개발용 닉네임/키 파일 로그인도 계속 사용할 수 있습니다.</p>
+
+    <button class="btn btn-google" id="btn-google-login" onclick="signInWithGoogle()">
+      <span class="google-mark">G</span>
+      Google 계정으로 계속하기
+    </button>
+  </div>
+
+  <script>
+    /* ── 설정 ─────────────────────────────────── */
+    const BACKEND_HOST = window.location.origin;  // 같은 서버
+    const TOKEN_KEY    = 'bookmark_auth_token';
+    const INDEX_PAGE   = '/index.html';
+    let supabaseClientPromise = null;
+
+    /* ── 페이지 진입: 토큰 자동 확인 ───────────── */
+    (async function checkToken() {
+      const handledOAuth = await handleSupabaseCallback();
+      if (handledOAuth) return;
+
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (!token) return;
+
+      try {
+        const res = await fetch(`${BACKEND_HOST}/api/auth/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token })
+        });
+        if (res.ok) {
+          document.getElementById('login-card').style.visibility = 'hidden';
+          redirectToIndex();
+        } else {
+          localStorage.removeItem(TOKEN_KEY);
+        }
+      } catch (e) {
+        console.warn('[토큰 검증 실패]', e);
+      }
+    })();
+
+    async function getSupabaseClient() {
+      if (supabaseClientPromise) return supabaseClientPromise;
+
+      supabaseClientPromise = (async () => {
+        const configRes = await fetch(`${BACKEND_HOST}/api/config`);
+        const config = await configRes.json();
+        if (!config.supabaseEnabled) return null;
+
+        const mod = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+        return mod.createClient(config.supabaseUrl, config.supabaseAnonKey, {
+          auth: {
+            detectSessionInUrl: true,
+            persistSession: true,
+            autoRefreshToken: true
+          }
+        });
+      })();
+
+      return supabaseClientPromise;
+    }
+
+    async function signInWithGoogle() {
+      hideError('error-nickname');
+      setLoading('btn-google-login', true);
+
+      try {
+        const client = await getSupabaseClient();
+        if (!client) {
+          showError('error-nickname', 'Supabase 환경 변수가 아직 설정되지 않았습니다.');
+          setLoading('btn-google-login', false, '<span class="google-mark">G</span> Google 계정으로 계속하기');
+          return;
+        }
+
+        const { error } = await client.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: `${window.location.origin}/login.html` }
+        });
+        if (error) throw error;
+      } catch (err) {
+        console.error('[Google 로그인 실패]', err);
+        showError('error-nickname', 'Google 로그인 시작에 실패했습니다.');
+        setLoading('btn-google-login', false, '<span class="google-mark">G</span> Google 계정으로 계속하기');
+      }
+    }
+
+    async function handleSupabaseCallback() {
+      const hasOAuthParams =
+        window.location.hash.includes('access_token') ||
+        window.location.search.includes('code=');
+      if (!hasOAuthParams) return false;
+
+      setLoading('btn-google-login', true);
+
+      try {
+        const client = await getSupabaseClient();
+        if (!client) throw new Error('Supabase is not configured');
+
+        const { data, error } = await client.auth.getSession();
+        if (error) throw error;
+
+        const accessToken = data?.session?.access_token;
+        if (!accessToken) throw new Error('No Supabase session');
+
+        const res = await fetch(`${BACKEND_HOST}/api/auth/supabase`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const { token } = await res.json();
+        localStorage.setItem(TOKEN_KEY, token);
+        window.history.replaceState({}, document.title, '/login.html');
+        redirectToIndex();
+        return true;
+      } catch (err) {
+        console.error('[OAuth 콜백 처리 실패]', err);
+        showError('error-nickname', 'Google 로그인 완료 처리에 실패했습니다.');
+        setLoading('btn-google-login', false, '<span class="google-mark">G</span> Google 계정으로 계속하기');
+        return false;
+      }
+    }
+
+    /* ── 에러 표시/숨김 ─────────────────────────── */
+    function showError(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+    function hideError(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+
+    /* ── 버튼 로딩 전환 ─────────────────────────── */
+    function setLoading(btnId, loading, label = '') {
+      const btn = document.getElementById(btnId);
+      btn.disabled = loading;
+      btn.innerHTML = loading
+        ? '<div class="spinner"></div>'
+        : label;
+    }
+
+    /* ── 파일 선택 핸들러 ────────────────────────── */
+    function handleFileSelect() {
+      const file = document.getElementById('key-file-input').files[0];
+      const area = document.getElementById('file-area');
+      if (file) {
+        area.classList.add('has-file');
+        document.getElementById('file-label-title').textContent = '✅ ' + file.name;
+        document.getElementById('file-label-sub').textContent = '파일이 선택되었습니다';
+      } else {
+        area.classList.remove('has-file');
+        document.getElementById('file-label-title').textContent = '📄 키 파일 선택';
+        document.getElementById('file-label-sub').textContent = '.text / .txt / .pem 파일을 클릭하세요';
+      }
+      hideError('error-keyfile');
+    }
+
+    /* ── 닉네임 제출 ──────────────────────────────── */
+    async function submitNickname() {
+      const nickname = document.getElementById('nickname-input').value.trim();
+      hideError('error-nickname');
+
+      if (!nickname)          return showError('error-nickname', '닉네임을 입력해주세요.');
+      if (nickname.length < 2) return showError('error-nickname', '닉네임은 2글자 이상이어야 합니다.');
+
+      setLoading('btn-nickname', true);
+
+      try {
+        const res = await fetch(`${BACKEND_HOST}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'nickname', nickname })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const { token } = await res.json();
+        localStorage.setItem(TOKEN_KEY, token);
+        redirectToIndex();
+      } catch (err) {
+        console.error(err);
+        showError('error-nickname', '서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        setLoading('btn-nickname', false, '접속하기');
+      }
+    }
+
+    /* ── 키파일 제출 ─────────────────────────────── */
+    async function submitKeyFile() {
+      const file = document.getElementById('key-file-input').files[0];
+      hideError('error-keyfile');
+
+      if (!file) return showError('error-keyfile', '키 파일을 선택해주세요.');
+
+      setLoading('btn-keyfile', true);
+
+      try {
+        const keyContent = await file.text();
+        const res = await fetch(`${BACKEND_HOST}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'keyfile', keyContent })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const { token } = await res.json();
+        localStorage.setItem(TOKEN_KEY, token);
+        redirectToIndex();
+      } catch (err) {
+        console.error(err);
+        showError('error-keyfile', '키 파일 인증에 실패했습니다. 올바른 파일인지 확인해주세요.');
+        setLoading('btn-keyfile', false, '인증키 확인 및 입장');
+      }
+    }
+
+    /* ── index.html로 이동 (퇴장 애니메이션) ────── */
+    function redirectToIndex() {
+      const card = document.getElementById('login-card');
+      card.classList.add('fade-out');
+      setTimeout(() => { window.location.href = INDEX_PAGE; }, 420);
+    }
+  </script>
+</body>
+</html>
