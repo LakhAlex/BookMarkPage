@@ -471,7 +471,6 @@
             <option value="oldest">오래된순</option>
           </select>
           <button class="btn-add" onclick="openModal()">+ 북마크 추가</button>
-          <button id="btn-logout" onclick="logout()">로그아웃</button>
         </div>
       </div>
 
@@ -882,16 +881,6 @@
       toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
     }
 
-    async function logout() {
-      try {
-        await fetch(`${BACKEND_HOST}/api/auth/logout`, {
-          method: 'POST',
-          credentials: 'same-origin'
-        });
-      } finally {
-        redirect(LOGIN_PAGE);
-      }
-    }
   </script>
 </body>
 </html>
