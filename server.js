@@ -38,10 +38,24 @@ const JWT_EXPIRES = '15d';
 const COOKIE_NAME = 'bookmark_session';
 const COOKIE_MAX_AGE = 15 * 24 * 60 * 60 * 1000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const SUPABASE_URL = process.env.SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+const SUPABASE_URL =
+  process.env.SUPABASE_URL ||
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  '';
+const SUPABASE_ANON_KEY =
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_PUBLIC_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const USE_SUPABASE_DB = Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
+const SUPABASE_CONFIG_MISSING = [
+  !SUPABASE_URL && 'SUPABASE_URL',
+  !SUPABASE_ANON_KEY && 'SUPABASE_ANON_KEY',
+  !SUPABASE_SERVICE_ROLE_KEY && 'SUPABASE_SERVICE_ROLE_KEY'
+].filter(Boolean);
 
 // ---------------------------------------------------------------------------
 // SQLite schema
@@ -489,6 +503,8 @@ function requireAuth(req, res, next) {
 app.get('/api/config', (req, res) => {
   res.json({
     supabaseEnabled: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY),
+    supabaseServerEnabled: Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
+    supabaseMissing: SUPABASE_CONFIG_MISSING,
     supabaseUrl: SUPABASE_URL || null,
     supabaseAnonKey: SUPABASE_ANON_KEY || null
   });
