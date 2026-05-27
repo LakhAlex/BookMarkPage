@@ -7,13 +7,12 @@
  *
  * Production option:
  *   - DB   : Supabase Postgres when SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set
- *   - Auth : Google OAuth through Supabase Auth -> app JWT
+ *   - Auth : Google OAuth through Supabase Auth -> HttpOnly app session cookie
  */
 
 'use strict';
 
 const express = require('express');
-const cors = require('cors');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const jwt = require('jsonwebtoken');
@@ -36,6 +35,8 @@ const PORT = process.env.PORT || 3000;
 const DB_PATH = path.join(__dirname, 'bookmarks.db');
 const JWT_SECRET = process.env.JWT_SECRET || 'bookmark-super-secret-key-change-in-prod';
 const JWT_EXPIRES = '15d';
+const COOKIE_NAME = 'bookmark_session';
+const COOKIE_MAX_AGE = 15 * 24 * 60 * 60 * 1000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
@@ -157,6 +158,85 @@ function publicUser(user) {
 
 function signAppToken(user) {
   return jwt.sign(publicUser(user), JWT_SECRET, { expiresIn: JWT_EXPIRES });
+}
+
+function parseCookies(cookieHeader = '') {
+  return cookieHeader
+    .split(';')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .reduce((cookies, part) => {
+      const index = part.indexOf('=');
+      if (index === -1) return cookies;
+      const key = decodeURIComponent(part.slice(0, index));
+      const value = decodeURIComponent(part.slice(index + 1));
+      cookies[key] = value;
+      return cookies;
+    }, {});
+}
+
+function cookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER),
+    sameSite: 'lax',
+    path: '/',
+    maxAge: COOKIE_MAX_AGE
+  };
+}
+
+function setAuthCookie(res, user) {
+  res.cookie(COOKIE_NAME, signAppToken(user), cookieOptions());
+}
+
+function clearAuthCookie(res) {
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER),
+    sameSite: 'lax',
+    path: '/'
+  });
+}
+
+function getRequestOrigin(req) {
+  return `${req.protocol}://${req.get('host')}`;
+}
+
+function isSameOrigin(req) {
+  const origin = req.get('origin');
+  if (!origin) return true;
+  return origin === getRequestOrigin(req);
+}
+
+function isPrivateIp(hostname) {
+  if (hostname === 'localhost') return true;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
+    const parts = hostname.split('.').map(Number);
+    return (
+      parts[0] === 10 ||
+      parts[0] === 127 ||
+      (parts[0] === 169 && parts[1] === 254) ||
+      (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+      (parts[0] === 192 && parts[1] === 168)
+    );
+  }
+  return hostname === '::1' || hostname.startsWith('fc') || hostname.startsWith('fd');
+}
+
+function normalizeBookmarkUrl(rawUrl) {
+  let url = rawUrl.trim();
+  if (url.length > 2048) throw new Error('URL이 너무 깁니다.');
+  if (!url.startsWith('http://') && !url.startsWith('https://')) url = `https://${url}`;
+
+  const parsed = new URL(url);
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('http 또는 https URL만 저장할 수 있습니다.');
+  }
+  if (isPrivateIp(parsed.hostname.toLowerCase())) {
+    throw new Error('내부 네트워크 주소는 저장할 수 없습니다.');
+  }
+
+  return parsed.toString();
 }
 
 function getDisplayName(authUser) {
@@ -364,15 +444,23 @@ function mapBookmark(row) {
 // ---------------------------------------------------------------------------
 const app = express();
 
-app.use(cors());
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+app.use((req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || isSameOrigin(req)) return next();
+  return res.status(403).json({ error: '허용되지 않은 요청 출처입니다.' });
+});
 app.use(express.json({ limit: '1mb' }));
 if (!fs.existsSync(PUBLIC_DIR)) fs.mkdirSync(PUBLIC_DIR, { recursive: true });
 app.use(express.static(PUBLIC_DIR));
 app.use(express.static(__dirname));
 
 function requireAuth(req, res, next) {
-  const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  const token = parseCookies(req.headers.cookie || '')[COOKIE_NAME];
   if (!token) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
   try {
@@ -406,7 +494,8 @@ app.post('/api/auth/supabase', async (req, res) => {
     }
 
     const user = await getOrCreateGoogleUser(data.user);
-    return res.json({ token: signAppToken(user), ...publicUser(user) });
+    setAuthCookie(res, user);
+    return res.json(publicUser(user));
   } catch (err) {
     console.error('[supabase auth failed]', err);
     return res.status(500).json({ error: 'Google 로그인 처리 중 오류가 발생했습니다.' });
@@ -426,7 +515,8 @@ app.post('/api/auth/login', async (req, res) => {
       let user = await findUserByNickname(name);
       if (!user) user = await createUser({ nickname: name });
 
-      return res.json({ token: signAppToken(user), nickname: user.nickname });
+      setAuthCookie(res, user);
+      return res.json(publicUser(user));
     }
 
     if (type === 'keyfile') {
@@ -441,7 +531,8 @@ app.post('/api/auth/login', async (req, res) => {
         });
       }
 
-      return res.json({ token: signAppToken(user), nickname: user.nickname });
+      setAuthCookie(res, user);
+      return res.json(publicUser(user));
     }
 
     return res.status(400).json({ error: '지원하지 않는 로그인 방식입니다.' });
@@ -452,8 +543,8 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.post('/api/auth/verify', (req, res) => {
-  const { token } = req.body;
-  if (!token) return res.status(400).json({ error: '토큰이 없습니다.' });
+  const token = parseCookies(req.headers.cookie || '')[COOKIE_NAME];
+  if (!token) return res.status(401).json({ valid: false, error: '로그인이 필요합니다.' });
 
   try {
     const payload = jwt.verify(token, JWT_SECRET);
@@ -466,6 +557,11 @@ app.post('/api/auth/verify', (req, res) => {
   } catch {
     return res.status(401).json({ valid: false, error: '유효하지 않은 토큰입니다.' });
   }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  clearAuthCookie(res);
+  res.json({ success: true });
 });
 
 app.get('/api/bookmarks', requireAuth, async (req, res) => {
@@ -482,8 +578,10 @@ app.post('/api/bookmarks', requireAuth, async (req, res) => {
   let { url, customName } = req.body;
   if (!url) return res.status(400).json({ error: 'URL이 필요합니다.' });
 
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = `https://${url}`;
+  try {
+    url = normalizeBookmarkUrl(url);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
   }
 
   let finalTitle = customName?.trim() || '';
