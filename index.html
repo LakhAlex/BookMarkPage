@@ -331,6 +331,15 @@
     .sidebar-link img { width: 16px; height: 12px; object-fit: cover; border-radius: 3px; flex-shrink: 0; background: var(--bg); }
     .sidebar-link span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+    #btn-logout {
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 11px; font-weight: 700;
+      background: var(--surface); color: var(--text-mute);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 12px; cursor: pointer;
+      transition: all 0.2s;
+    }
     #btn-logout:hover { background: #fff0f3; color: var(--danger); border-color: var(--danger); }
 
     /* ── 모달 ───────────────────────────────────── */
@@ -462,6 +471,7 @@
             <option value="oldest">오래된순</option>
           </select>
           <button class="btn-add" onclick="openModal()">+ 북마크 추가</button>
+          <button id="btn-logout" onclick="logout()">로그아웃</button>
         </div>
       </div>
 
@@ -530,7 +540,6 @@
        설정
     ══════════════════════════════════════════════ */
     const BACKEND_HOST = window.location.origin;
-    const TOKEN_KEY    = 'bookmark_auth_token';
     const LOGIN_PAGE   = '/login.html';
 
     /* ══════════════════════════════════════════════
@@ -539,21 +548,17 @@
     let bookmarks     = [];
     let isBmSearch    = false;
     let isSidebarOpen = false;
-    let authToken     = null;
 
     /* ══════════════════════════════════════════════
        초기화
     ══════════════════════════════════════════════ */
     (async function init() {
-      authToken = localStorage.getItem(TOKEN_KEY);
-      if (!authToken) return redirect(LOGIN_PAGE);
-
-      // 토큰 검증
+      // 세션 쿠키 검증
       try {
         const res = await fetch(`${BACKEND_HOST}/api/auth/verify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: authToken })
+          credentials: 'same-origin'
         });
         if (!res.ok) throw new Error('invalid');
 
@@ -566,13 +571,22 @@
         startClock();
         await fetchBookmarks();
       } catch {
-        localStorage.removeItem(TOKEN_KEY);
         redirect(LOGIN_PAGE);
       }
     })();
 
     function redirect(page) {
       window.location.href = page;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[ch]));
     }
 
     /* ══════════════════════════════════════════════
@@ -659,11 +673,11 @@
         const div = document.createElement('div');
         div.className = 'suggestion-item';
         div.innerHTML = `
-          <img src="${item.thumbnailUrl}" alt=""
+          <img src="${escapeHtml(item.thumbnailUrl)}" alt=""
                onerror="this.src='https://via.placeholder.com/40x28?text=img'">
           <div style="min-width:0">
-            <div class="suggestion-title">${item.title}</div>
-            <div class="suggestion-url">${item.url}</div>
+            <div class="suggestion-title">${escapeHtml(item.title)}</div>
+            <div class="suggestion-url">${escapeHtml(item.url)}</div>
           </div>`;
         div.addEventListener('click', () => {
           window.open(item.url, '_blank', 'noopener,noreferrer');
@@ -685,9 +699,9 @@
     async function fetchBookmarks() {
       try {
         const res = await fetch(`${BACKEND_HOST}/api/bookmarks`, {
-          headers: { Authorization: `Bearer ${authToken}` }
+          credentials: 'same-origin'
         });
-        if (res.status === 401) { localStorage.removeItem(TOKEN_KEY); redirect(LOGIN_PAGE); return; }
+        if (res.status === 401) { redirect(LOGIN_PAGE); return; }
         if (!res.ok) throw new Error('fetch error');
 
         bookmarks = await res.json();
@@ -751,16 +765,16 @@
       card.className = 'card';
       card.innerHTML = `
         <div class="card-thumb">
-          <img src="${item.thumbnailUrl}" alt=""
+          <img src="${escapeHtml(item.thumbnailUrl)}" alt=""
                loading="lazy"
                onerror="this.src='https://via.placeholder.com/300x180?text=No+Thumbnail'">
         </div>
         <div class="card-body">
-          <div class="card-title">${item.title}</div>
+          <div class="card-title">${escapeHtml(item.title)}</div>
           ${dateStr ? `<div class="card-date">${dateStr}</div>` : ''}
-          <div class="card-url">${item.url}</div>
+          <div class="card-url">${escapeHtml(item.url)}</div>
         </div>
-        <button class="card-del" title="삭제" onclick="deleteBookmark('${item.id}', event)">✕</button>`;
+        <button class="card-del" title="삭제" onclick="deleteBookmark('${escapeHtml(item.id)}', event)">✕</button>`;
       card.addEventListener('click', () => window.open(item.url, '_blank', 'noopener,noreferrer'));
       grid.appendChild(card);
     }
@@ -777,9 +791,9 @@
         a.className = 'sidebar-link';
         a.href = item.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
         a.innerHTML = `
-          <img src="${item.thumbnailUrl}" alt=""
+          <img src="${escapeHtml(item.thumbnailUrl)}" alt=""
                onerror="this.src='https://via.placeholder.com/16'">
-          <span>${item.title}</span>`;
+          <span>${escapeHtml(item.title)}</span>`;
         list.appendChild(a);
       });
     }
@@ -813,12 +827,12 @@
         const res = await fetch(`${BACKEND_HOST}/api/bookmarks`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${authToken}`
+            'Content-Type': 'application/json'
           },
+          credentials: 'same-origin',
           body: JSON.stringify({ url, customName: name })
         });
-        if (res.status === 401) { localStorage.removeItem(TOKEN_KEY); redirect(LOGIN_PAGE); return; }
+        if (res.status === 401) { redirect(LOGIN_PAGE); return; }
         if (!res.ok) throw new Error('submit error');
 
         await fetchBookmarks();
@@ -843,7 +857,7 @@
       try {
         const res = await fetch(`${BACKEND_HOST}/api/bookmarks/${id}`, {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${authToken}` }
+          credentials: 'same-origin'
         });
         if (!res.ok) throw new Error('delete error');
 
@@ -866,6 +880,17 @@
       el.classList.add('show');
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+    }
+
+    async function logout() {
+      try {
+        await fetch(`${BACKEND_HOST}/api/auth/logout`, {
+          method: 'POST',
+          credentials: 'same-origin'
+        });
+      } finally {
+        redirect(LOGIN_PAGE);
+      }
     }
   </script>
 </body>
