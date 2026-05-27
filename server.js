@@ -457,7 +457,22 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '1mb' }));
 if (!fs.existsSync(PUBLIC_DIR)) fs.mkdirSync(PUBLIC_DIR, { recursive: true });
 app.use(express.static(PUBLIC_DIR));
-app.use(express.static(__dirname));
+
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'login.html'));
+});
+
+app.get('/app', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/login.html', (req, res) => {
+  res.redirect(301, '/login');
+});
+
+app.get('/index.html', (req, res) => {
+  res.redirect(301, '/app');
+});
 
 function requireAuth(req, res, next) {
   const token = parseCookies(req.headers.cookie || '')[COOKIE_NAME];
@@ -670,13 +685,14 @@ app.delete('/api/bookmarks/:id', requireAuth, async (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.redirect('/login.html');
+  res.redirect('/login');
 });
 
 initDb().then(() => {
   app.listen(PORT, () => {
     console.log(`\nServer: http://localhost:${PORT}`);
-    console.log(`Login : http://localhost:${PORT}/login.html`);
+    console.log(`Login : http://localhost:${PORT}/login`);
+    console.log(`App   : http://localhost:${PORT}/app`);
     console.log(`DB    : ${USE_SUPABASE_DB ? 'Supabase' : 'SQLite'}\n`);
   });
 }).catch(err => {
