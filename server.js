@@ -57,6 +57,10 @@ const SUPABASE_CONFIG_MISSING = [
   !SUPABASE_SERVICE_ROLE_KEY && 'SUPABASE_SERVICE_ROLE_KEY'
 ].filter(Boolean);
 
+if (SUPABASE_CONFIG_MISSING.length) {
+  console.warn('[config] Missing Supabase env:', SUPABASE_CONFIG_MISSING.join(', '));
+}
+
 // ---------------------------------------------------------------------------
 // SQLite schema
 // ---------------------------------------------------------------------------
