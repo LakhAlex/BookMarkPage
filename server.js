@@ -70,12 +70,13 @@ const SUPABASE_CONFIG_MISSING = [
   !SUPABASE_ANON_KEY && 'SUPABASE_ANON_KEY',
   !SUPABASE_SERVICE_ROLE_KEY && 'SUPABASE_SERVICE_ROLE_KEY'
 ].filter(Boolean);
+const IS_PRODUCTION = process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER);
 
 if (SUPABASE_CONFIG_MISSING.length) {
   console.warn('[config] Missing Supabase env:', SUPABASE_CONFIG_MISSING.join(', '));
 }
 
-if ((process.env.NODE_ENV === 'production' || process.env.RENDER) && JWT_SECRET === DEFAULT_JWT_SECRET) {
+if (IS_PRODUCTION && JWT_SECRET === DEFAULT_JWT_SECRET) {
   throw new Error('JWT_SECRET must be set in production.');
 }
 
@@ -514,6 +515,9 @@ app.disable('x-powered-by');
 app.set('trust proxy', 1);
 app.use((req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   next();
 });
 app.use((req, res, next) => {
@@ -556,8 +560,8 @@ app.get('/api/config', (req, res) => {
   res.json({
     supabaseEnabled: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY),
     supabaseServerEnabled: Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
-    supabaseMissing: SUPABASE_CONFIG_MISSING,
-    supabaseEnvPresent: SUPABASE_ENV_PRESENT,
+    supabaseMissing: IS_PRODUCTION ? [] : SUPABASE_CONFIG_MISSING,
+    supabaseEnvPresent: IS_PRODUCTION ? undefined : SUPABASE_ENV_PRESENT,
     supabaseUrl: SUPABASE_URL || null,
     supabaseAnonKey: SUPABASE_ANON_KEY || null
   });
