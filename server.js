@@ -20,6 +20,9 @@ const { v4: uuidv4 } = require('uuid');
 const initSqlJs = require('sql.js');
 const fs = require('fs');
 const path = require('path');
+const dns = require('dns');
+const http = require('http');
+const https = require('https');
 
 let createClient = null;
 try {
@@ -33,7 +36,8 @@ try {
 // ---------------------------------------------------------------------------
 const PORT = process.env.PORT || 3000;
 const DB_PATH = path.join(__dirname, 'bookmarks.db');
-const JWT_SECRET = process.env.JWT_SECRET || 'bookmark-super-secret-key-change-in-prod';
+const DEFAULT_JWT_SECRET = 'bookmark-super-secret-key-change-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
 const JWT_EXPIRES = '15d';
 const COOKIE_NAME = 'bookmark_session';
 const COOKIE_MAX_AGE = 15 * 24 * 60 * 60 * 1000;
@@ -69,6 +73,10 @@ const SUPABASE_CONFIG_MISSING = [
 
 if (SUPABASE_CONFIG_MISSING.length) {
   console.warn('[config] Missing Supabase env:', SUPABASE_CONFIG_MISSING.join(', '));
+}
+
+if ((process.env.NODE_ENV === 'production' || process.env.RENDER) && JWT_SECRET === DEFAULT_JWT_SECRET) {
+  throw new Error('JWT_SECRET must be set in production.');
 }
 
 // ---------------------------------------------------------------------------
@@ -241,15 +249,45 @@ function isPrivateIp(hostname) {
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
     const parts = hostname.split('.').map(Number);
     return (
+      parts.some(part => part < 0 || part > 255) ||
+      parts[0] === 0 ||
       parts[0] === 10 ||
       parts[0] === 127 ||
       (parts[0] === 169 && parts[1] === 254) ||
       (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
-      (parts[0] === 192 && parts[1] === 168)
+      (parts[0] === 192 && parts[1] === 168) ||
+      (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) ||
+      (parts[0] === 192 && parts[1] === 0 && parts[2] === 0) ||
+      (parts[0] === 192 && parts[1] === 0 && parts[2] === 2) ||
+      (parts[0] === 198 && parts[1] >= 18 && parts[1] <= 19) ||
+      (parts[0] === 198 && parts[1] === 51 && parts[2] === 100) ||
+      (parts[0] === 203 && parts[1] === 0 && parts[2] === 113) ||
+      parts[0] >= 224
     );
   }
-  return hostname === '::1' || hostname.startsWith('fc') || hostname.startsWith('fd');
+  const ipv6 = hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  if (ipv6.startsWith('::ffff:')) return isPrivateIp(ipv6.slice(7));
+  return (
+    ipv6 === '::1' ||
+    ipv6 === '::' ||
+    ipv6.startsWith('fc') ||
+    ipv6.startsWith('fd') ||
+    ipv6.startsWith('fe80:')
+  );
 }
+
+function safeLookup(hostname, options, callback) {
+  dns.lookup(hostname, options, (err, address, family) => {
+    if (err) return callback(err);
+    if (isPrivateIp(address)) {
+      return callback(new Error('내부 네트워크 주소는 가져올 수 없습니다.'));
+    }
+    return callback(null, address, family);
+  });
+}
+
+const safeHttpAgent = new http.Agent({ lookup: safeLookup });
+const safeHttpsAgent = new https.Agent({ lookup: safeLookup });
 
 function normalizeBookmarkUrl(rawUrl) {
   let url = rawUrl.trim();
@@ -536,6 +574,7 @@ app.post('/api/auth/supabase', async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin.auth.getUser(accessToken);
     if (error || !data?.user) {
+      if (error) console.error('[supabase token invalid]', error.message || error);
       return res.status(401).json({ error: 'Supabase 토큰이 유효하지 않습니다.' });
     }
 
@@ -646,13 +685,21 @@ app.post('/api/bookmarks', requireAuth, async (req, res) => {
     if (!finalTitle && isYoutube) {
       const ytRes = await axios.get(
         `https://noembed.com/embed?url=${encodeURIComponent(url)}`,
-        { timeout: 5000 }
+        {
+          timeout: 5000,
+          httpAgent: safeHttpAgent,
+          httpsAgent: safeHttpsAgent,
+          maxRedirects: 3
+        }
       );
       if (ytRes.data?.title) finalTitle = ytRes.data.title;
     } else if (!finalTitle) {
       const response = await axios.get(url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-        timeout: 5000
+        timeout: 5000,
+        httpAgent: safeHttpAgent,
+        httpsAgent: safeHttpsAgent,
+        maxRedirects: 3
       });
       const $ = cheerio.load(response.data);
 
