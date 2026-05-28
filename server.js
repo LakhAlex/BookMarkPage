@@ -327,6 +327,19 @@ async function findUserByNickname(nickname) {
   return dbGet('SELECT * FROM users WHERE nickname = ?', [nickname]);
 }
 
+async function findUserById(userId) {
+  if (USE_SUPABASE_DB) {
+    const { data, error } = await supabaseAdmin
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+  return dbGet('SELECT * FROM users WHERE id = ?', [userId]);
+}
+
 async function findUserByKeyHash(hash) {
   if (USE_SUPABASE_DB) {
     const { data, error } = await supabaseAdmin
@@ -544,14 +557,21 @@ app.get('/index.html', (req, res) => {
   res.redirect(301, '/app');
 });
 
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const token = parseCookies(req.headers.cookie || '')[COOKIE_NAME];
   if (!token) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET);
+    const user = await findUserById(payload.userId);
+    if (!user) {
+      clearAuthCookie(res);
+      return res.status(401).json({ error: '사용자 정보가 없어 다시 로그인해야 합니다.' });
+    }
+    req.user = publicUser(user);
     next();
-  } catch {
+  } catch (err) {
+    console.error('[auth failed]', err);
     return res.status(401).json({ error: '만료되거나 유효하지 않은 토큰입니다.' });
   }
 }
@@ -631,19 +651,25 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/auth/verify', (req, res) => {
+app.post('/api/auth/verify', async (req, res) => {
   const token = parseCookies(req.headers.cookie || '')[COOKIE_NAME];
   if (!token) return res.status(401).json({ valid: false, error: '로그인이 필요합니다.' });
 
   try {
     const payload = jwt.verify(token, JWT_SECRET);
+    const user = await findUserById(payload.userId);
+    if (!user) {
+      clearAuthCookie(res);
+      return res.status(401).json({ valid: false, error: '사용자 정보가 없어 다시 로그인해야 합니다.' });
+    }
     return res.json({
       valid: true,
-      nickname: payload.nickname,
-      email: payload.email || null,
-      avatarUrl: payload.avatarUrl || null
+      nickname: user.nickname,
+      email: user.email || null,
+      avatarUrl: user.avatar_url || null
     });
-  } catch {
+  } catch (err) {
+    console.error('[verify failed]', err);
     return res.status(401).json({ valid: false, error: '유효하지 않은 토큰입니다.' });
   }
 });
