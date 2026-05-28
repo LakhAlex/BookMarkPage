@@ -246,6 +246,9 @@ function isSameOrigin(req) {
 }
 
 function isPrivateIp(hostname) {
+  if (hostname && typeof hostname === 'object') hostname = hostname.address;
+  if (typeof hostname !== 'string') return false;
+
   if (hostname === 'localhost') return true;
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
     const parts = hostname.split('.').map(Number);
@@ -280,9 +283,12 @@ function isPrivateIp(hostname) {
 function safeLookup(hostname, options, callback) {
   dns.lookup(hostname, options, (err, address, family) => {
     if (err) return callback(err);
-    if (isPrivateIp(address)) {
+
+    const resolved = Array.isArray(address) ? address : [address];
+    if (resolved.some(item => isPrivateIp(item))) {
       return callback(new Error('내부 네트워크 주소는 가져올 수 없습니다.'));
     }
+
     return callback(null, address, family);
   });
 }
