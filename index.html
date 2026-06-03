@@ -54,6 +54,10 @@
       box-shadow: var(--shadow-sm);
       z-index: 30;
       cursor: default;
+      max-width: min(360px, calc(100vw - 360px));
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     /* ── 사이드바 토글 버튼 ──────────────────────── */
@@ -469,7 +473,7 @@
       .card-del { opacity: 1; width: 30px; height: 30px; font-size: 12px; }
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: 768px), (max-width: 1024px) and (pointer: coarse) {
       :root { --radius: 12px; }
       body { min-height: 100dvh; }
       #clock { display: none; }
