@@ -571,11 +571,23 @@
         border-radius: 14px;
       }
       #grid {
-        width: 99.7%;
+        width: 100%;
         max-width: none;
         grid-template-columns: 1fr;
         gap: 12px;
         margin-inline: auto;
+      }
+      .card {
+        width: min(350px, 100%);
+        aspect-ratio: 350 / 220;
+        justify-self: center;
+      }
+      .card-thumb {
+        aspect-ratio: auto;
+        flex: 0 0 60%;
+      }
+      .card-body {
+        min-height: 0;
       }
       .card-body { padding: 13px 13px 12px; }
       .card-title { font-size: 13px; }
