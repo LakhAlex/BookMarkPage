@@ -479,10 +479,10 @@
       #clock { display: none; }
       #user-badge {
         top: max(10px, env(safe-area-inset-top));
-        left: 12px;
-        right: 154px;
-        transform: none;
-        max-width: none;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        max-width: clamp(120px, calc(100vw - 300px), 220px);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
