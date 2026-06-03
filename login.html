@@ -400,6 +400,11 @@
       } catch (e) {
         console.warn('[토큰 검증 실패]', e);
       }
+
+      if (shouldAutoStartGoogleLogin()) {
+        window.history.replaceState({}, document.title, '/login');
+        signInWithGoogle();
+      }
     })();
 
     async function getSupabaseClient() {
@@ -440,6 +445,14 @@
 
     async function signInWithGoogle() {
       hideError('error-login');
+
+      if (isKakaoInAppBrowser()) {
+        showBrowserBridgeIfNeeded();
+        showError('error-login', '카카오톡 안에서는 Google 로그인이 차단될 수 있습니다. Chrome에서 다시 열어주세요.');
+        openGoogleLoginInChrome();
+        return;
+      }
+
       setLoading('btn-google-login', true);
 
       try {
@@ -651,8 +664,8 @@
       document.getElementById('browser-bridge').classList.remove('show');
     }
 
-    function openCurrentPageInChrome() {
-      const current = getShareableCurrentUrl();
+    function openCurrentPageInChrome(targetUrl = getShareableCurrentUrl()) {
+      const current = targetUrl;
       const withoutScheme = current.replace(/^https?:\/\//i, '');
       const scheme = window.location.protocol.replace(':', '') || 'https';
 
@@ -661,13 +674,17 @@
         return;
       }
 
-      copyCurrentUrl();
+      copyCurrentUrl(current);
       showError('error-login', '주소를 복사했습니다. Chrome에서 붙여넣어 열어주세요.');
     }
 
-    async function copyCurrentUrl() {
+    function openGoogleLoginInChrome() {
+      openCurrentPageInChrome(getGoogleLoginUrl());
+    }
+
+    async function copyCurrentUrl(targetUrl = getShareableCurrentUrl()) {
       try {
-        await navigator.clipboard.writeText(getShareableCurrentUrl());
+        await navigator.clipboard.writeText(targetUrl);
         showError('error-login', '주소를 복사했습니다.');
       } catch {
         showError('error-login', '주소 복사가 제한되었습니다. 주소창의 링크를 복사해주세요.');
@@ -678,7 +695,16 @@
       return `${window.location.origin}${window.location.pathname}${window.location.search}`;
     }
 
-    showBrowserBridgeIfNeeded();
+    function getGoogleLoginUrl() {
+      const url = new URL(`${window.location.origin}/login`);
+      url.searchParams.set('oauth', 'google');
+      return url.toString();
+    }
+
+    function shouldAutoStartGoogleLogin() {
+      const params = new URLSearchParams(window.location.search || '');
+      return params.get('oauth') === 'google' && !isKakaoInAppBrowser();
+    }
   </script>
 </body>
 </html>
