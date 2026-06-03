@@ -573,14 +573,14 @@
       #grid {
         width: 100%;
         max-width: none;
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(min(350px, 100%), 350px));
+        justify-content: center;
         gap: 12px;
         margin-inline: auto;
       }
       .card {
-        width: min(350px, 100%);
+        width: 100%;
         aspect-ratio: 350 / 220;
-        justify-self: center;
       }
       .card-thumb {
         aspect-ratio: auto;
