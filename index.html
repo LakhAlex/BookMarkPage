@@ -181,21 +181,25 @@
     .header-actions { display: flex; align-items: center; gap: 8px; }
     .sort-select {
       font-family: 'Noto Sans KR', sans-serif;
-      font-size: 11px; color: var(--text);
+      font-size: 12px; color: var(--text);
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 6px 10px; cursor: pointer;
+      width: 95px;
+      height: 40px;
+      padding: 6px 8px; cursor: pointer;
       outline: none;
       transition: border-color 0.2s;
     }
     .sort-select:focus { border-color: var(--accent); }
     .btn-add {
       font-family: 'Noto Sans KR', sans-serif;
-      font-size: 11px; font-weight: 700;
+      font-size: 12px; font-weight: 700;
       background: var(--accent); color: #fff;
       border: none; border-radius: 8px;
-      padding: 7px 14px; cursor: pointer;
+      width: 95px;
+      height: 40px;
+      padding: 7px 8px; cursor: pointer;
       transition: all 0.2s;
       box-shadow: 0 2px 8px rgba(95,77,240,0.25);
     }
@@ -553,11 +557,13 @@
       }
       .sort-select,
       .btn-add {
-        min-height: 38px;
+        width: 95px;
+        height: 40px;
+        min-height: 40px;
         font-size: 12px;
       }
-      .sort-select { flex: 0 0 96px; width: 96px; min-width: 0; }
-      .btn-add { flex-shrink: 0; padding: 8px 12px; }
+      .sort-select { flex: 0 0 95px; min-width: 0; padding: 6px 8px; }
+      .btn-add { flex: 0 0 95px; padding: 8px 8px; }
       #empty-view {
         max-width: none;
         min-height: 42dvh;
