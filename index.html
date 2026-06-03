@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>비주얼 레퍼런스 대시보드</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -29,6 +29,7 @@
       color: var(--text);
       min-height: 100vh;
       overflow-x: hidden;
+      -webkit-text-size-adjust: 100%;
     }
 
     /* ── 시계 ───────────────────────────────────── */
@@ -331,17 +332,6 @@
     .sidebar-link img { width: 16px; height: 12px; object-fit: cover; border-radius: 3px; flex-shrink: 0; background: var(--bg); }
     .sidebar-link span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    #btn-logout {
-      font-family: 'Noto Sans KR', sans-serif;
-      font-size: 11px; font-weight: 700;
-      background: var(--surface); color: var(--text-mute);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 7px 12px; cursor: pointer;
-      transition: all 0.2s;
-    }
-    #btn-logout:hover { background: #fff0f3; color: var(--danger); border-color: var(--danger); }
-
     /* ── 모달 ───────────────────────────────────── */
     #modal-overlay {
       position: fixed; inset: 0;
@@ -427,9 +417,213 @@
       pointer-events: none;
     }
     #toast.show { opacity: 1; }
+
+    .browser-bridge {
+      position: fixed;
+      top: 58px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(520px, calc(100% - 24px));
+      background: #111827;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      box-shadow: var(--shadow-md);
+      padding: 12px;
+      z-index: 120;
+      display: none;
+      gap: 10px;
+      align-items: center;
+    }
+    .browser-bridge.show { display: flex; }
+    .browser-bridge p {
+      flex: 1;
+      font-size: 12px;
+      line-height: 1.5;
+      color: rgba(255,255,255,0.86);
+    }
+    .browser-bridge-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .browser-bridge button {
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 8px;
+      padding: 7px 10px;
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .browser-bridge .primary {
+      background: #fff;
+      color: #111827;
+    }
+
+    @media (hover: none) {
+      .card:hover { transform: none; box-shadow: var(--shadow-sm); }
+      .card:hover .card-thumb img { transform: none; }
+      .card-del { opacity: 1; width: 30px; height: 30px; font-size: 12px; }
+    }
+
+    @media (max-width: 768px) {
+      :root { --radius: 12px; }
+      body { min-height: 100dvh; }
+      #clock { display: none; }
+      #user-badge {
+        top: max(10px, env(safe-area-inset-top));
+        left: 12px;
+        right: 154px;
+        transform: none;
+        max-width: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding: 7px 12px;
+      }
+      #sidebar-toggle {
+        top: max(10px, env(safe-area-inset-top));
+        right: 12px;
+        padding: 7px 11px;
+        z-index: 90;
+      }
+      #layout,
+      #layout.sidebar-open {
+        display: block;
+        padding-top: calc(54px + env(safe-area-inset-top));
+        padding-right: 0;
+      }
+      body.has-browser-bridge #layout,
+      body.has-browser-bridge #layout.sidebar-open {
+        padding-top: calc(142px + env(safe-area-inset-top));
+      }
+      #main {
+        padding: 18px 14px calc(36px + env(safe-area-inset-bottom));
+        align-items: stretch;
+      }
+      .search-wrap {
+        max-width: none;
+        margin-bottom: 24px;
+      }
+      .search-mode-toggle {
+        width: 100%;
+        max-width: 340px;
+        margin-bottom: 10px;
+      }
+      .toggle-btn {
+        min-height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .search-box input {
+        font-size: 16px;
+        padding: 15px 16px 15px 44px;
+      }
+      .suggestions {
+        max-height: min(320px, 48dvh);
+      }
+      .suggestion-item {
+        min-height: 56px;
+        padding: 11px 12px;
+      }
+      .section-header {
+        max-width: none;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .section-title {
+        min-height: 36px;
+        align-items: center;
+      }
+      .header-actions {
+        width: 100%;
+        justify-content: stretch;
+      }
+      .sort-select,
+      .btn-add {
+        min-height: 38px;
+        font-size: 12px;
+      }
+      .sort-select { flex: 1; min-width: 0; }
+      .btn-add { flex-shrink: 0; padding: 8px 12px; }
+      #empty-view {
+        max-width: none;
+        min-height: 42dvh;
+        padding: 36px 18px;
+        border-radius: 14px;
+      }
+      #grid {
+        max-width: none;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .card-body { padding: 13px 13px 12px; }
+      .card-title { font-size: 13px; }
+      .card-url { font-size: 11px; }
+      #sidebar {
+        width: min(88vw, 340px);
+        padding: calc(62px + env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom));
+        z-index: 80;
+      }
+      .quick-item {
+        min-height: 68px;
+      }
+      #modal-overlay {
+        align-items: flex-end;
+        padding: 12px;
+      }
+      .modal-box {
+        max-height: calc(100dvh - 24px - env(safe-area-inset-top));
+        overflow-y: auto;
+        border-radius: 16px;
+        padding: 22px 18px 18px;
+      }
+      .modal-field input {
+        font-size: 16px;
+        padding: 12px;
+      }
+      .modal-actions {
+        justify-content: stretch;
+      }
+      .btn-cancel,
+      .btn-submit {
+        flex: 1;
+        min-height: 42px;
+        justify-content: center;
+      }
+      #toast {
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        width: calc(100% - 24px);
+        text-align: center;
+        border-radius: 12px;
+      }
+      .browser-bridge {
+        top: calc(52px + env(safe-area-inset-top));
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .browser-bridge-actions button {
+        flex: 1;
+        min-height: 38px;
+      }
+    }
   </style>
 </head>
 <body>
+  <div class="browser-bridge" id="browser-bridge">
+    <p>카카오톡 안에서 열렸습니다. 로그인이나 새 창 이동이 불안정하면 Chrome에서 열어주세요.</p>
+    <div class="browser-bridge-actions">
+      <button type="button" class="primary" onclick="openCurrentPageInChrome()">Chrome 열기</button>
+      <button type="button" onclick="copyCurrentUrl()">주소 복사</button>
+      <button type="button" onclick="hideBrowserBridge()">닫기</button>
+    </div>
+  </div>
+
   <!-- 시계 -->
   <div id="clock">🕒 로딩 중...</div>
 
@@ -634,11 +828,10 @@
       if (!q) return;
 
       if (!isBmSearch) {
-        window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank', 'noopener,noreferrer');
-        document.getElementById('search-input').value = ''; // google 검색 후 검색바에 있는 값 비우기
+        openGoogleSearch(q);
       } else {
         const match = filterBookmarks(q)[0];
-        if (match) { window.open(match.url, '_blank', 'noopener,noreferrer'); hideSuggestions(); }
+        if (match) { openExternalUrl(match.url); hideSuggestions(); }
       }
     });
 
@@ -679,7 +872,7 @@
             <div class="suggestion-url">${escapeHtml(item.url)}</div>
           </div>`;
         div.addEventListener('click', () => {
-          window.open(item.url, '_blank', 'noopener,noreferrer');
+          openExternalUrl(item.url);
           hideSuggestions();
           document.getElementById('search-input').value = '';
         });
@@ -690,6 +883,87 @@
 
     function hideSuggestions() {
       document.getElementById('suggestions').style.display = 'none';
+    }
+
+    function isMobileViewport() {
+      return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
+    }
+
+    function isKakaoInAppBrowser() {
+      return /KAKAOTALK/i.test(navigator.userAgent || '');
+    }
+
+    function openExternalUrl(url) {
+      if (isMobileViewport()) {
+        window.location.href = url;
+        return;
+      }
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
+    function openGoogleSearch(query) {
+      const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+      const input = document.getElementById('search-input');
+
+      if (isMobileViewport()) {
+        input.blur();
+        toast('Google 검색으로 이동합니다.');
+        window.location.assign(url);
+        return;
+      }
+
+      window.open(url, '_blank', 'noopener,noreferrer');
+      input.value = ''; // PC에서는 Google 검색 후 검색바에 있는 값 비우기
+    }
+
+    function showBrowserBridgeIfNeeded() {
+      if (!isKakaoInAppBrowser()) return;
+      document.body.classList.add('has-browser-bridge');
+      document.getElementById('browser-bridge').classList.add('show');
+    }
+
+    function hideBrowserBridge() {
+      document.body.classList.remove('has-browser-bridge');
+      document.getElementById('browser-bridge').classList.remove('show');
+    }
+
+    function openCurrentPageInChrome() {
+      const current = getShareableCurrentUrl();
+      const withoutScheme = current.replace(/^https?:\/\//i, '');
+      const scheme = window.location.protocol.replace(':', '') || 'https';
+
+      if (/Android/i.test(navigator.userAgent || '')) {
+        window.location.href = `intent://${withoutScheme}#Intent;scheme=${scheme};package=com.android.chrome;end`;
+        return;
+      }
+
+      copyCurrentUrl();
+      toast('주소를 복사했습니다. Chrome에서 붙여넣어 열어주세요.');
+    }
+
+    async function copyCurrentUrl() {
+      try {
+        await navigator.clipboard.writeText(getShareableCurrentUrl());
+        toast('주소를 복사했습니다.');
+      } catch {
+        toast('주소 복사가 제한되었습니다. 주소창의 링크를 복사해주세요.');
+      }
+    }
+
+    function getShareableCurrentUrl() {
+      return `${window.location.origin}${window.location.pathname}${window.location.search}`;
+    }
+
+    function applyMobileLinkBehavior() {
+      if (!isMobileViewport()) return;
+      document.querySelectorAll('a[target="_blank"]').forEach(link => {
+        link.addEventListener('click', event => {
+          const href = link.getAttribute('href');
+          if (!href || !/^https?:\/\//i.test(href)) return;
+          event.preventDefault();
+          window.location.href = href;
+        });
+      });
     }
 
     /* ══════════════════════════════════════════════
@@ -774,7 +1048,7 @@
           <div class="card-url">${escapeHtml(item.url)}</div>
         </div>
         <button class="card-del" title="삭제" onclick="deleteBookmark('${escapeHtml(item.id)}', event)">✕</button>`;
-      card.addEventListener('click', () => window.open(item.url, '_blank', 'noopener,noreferrer'));
+      card.addEventListener('click', () => openExternalUrl(item.url));
       grid.appendChild(card);
     }
 
@@ -788,7 +1062,11 @@
       bookmarks.forEach(item => {
         const a = document.createElement('a');
         a.className = 'sidebar-link';
-        a.href = item.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.href = item.url;
+        if (!isMobileViewport()) {
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+        }
         a.innerHTML = `
           <img src="${escapeHtml(item.thumbnailUrl)}" alt=""
                onerror="this.src='https://via.placeholder.com/16'">
@@ -881,6 +1159,8 @@
       toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
     }
 
+    showBrowserBridgeIfNeeded();
+    applyMobileLinkBehavior();
   </script>
 </body>
 </html>
