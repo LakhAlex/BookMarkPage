@@ -543,17 +543,20 @@
       .section-title {
         min-height: 36px;
         align-items: center;
+        flex-shrink: 0;
+        white-space: nowrap;
       }
       .header-actions {
-        width: 100%;
-        justify-content: stretch;
+        width: auto;
+        margin-left: auto;
+        justify-content: flex-end;
       }
       .sort-select,
       .btn-add {
         min-height: 38px;
         font-size: 12px;
       }
-      .sort-select { flex: 1; min-width: 0; }
+      .sort-select { flex: 0 0 96px; width: 96px; min-width: 0; }
       .btn-add { flex-shrink: 0; padding: 8px 12px; }
       #empty-view {
         max-width: none;
@@ -562,9 +565,11 @@
         border-radius: 14px;
       }
       #grid {
+        width: 99.7%;
         max-width: none;
         grid-template-columns: 1fr;
         gap: 12px;
+        margin-inline: auto;
       }
       .card-body { padding: 13px 13px 12px; }
       .card-title { font-size: 13px; }
