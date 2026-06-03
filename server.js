@@ -23,6 +23,7 @@ const path = require('path');
 const dns = require('dns');
 const http = require('http');
 const https = require('https');
+const crypto = require('crypto');
 
 let createClient = null;
 try {
@@ -42,6 +43,11 @@ const JWT_EXPIRES = '15d';
 const COOKIE_NAME = 'bookmark_session';
 const COOKIE_MAX_AGE = 15 * 24 * 60 * 60 * 1000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
+const MAX_NICKNAME_LENGTH = 40;
+const MAX_CUSTOM_TITLE_LENGTH = 160;
+const MAX_KEY_CONTENT_LENGTH = 64 * 1024;
+const MAX_CRAWL_BYTES = 1024 * 1024;
+const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/300x180?text=No+Image';
 const SUPABASE_URL =
   process.env.SUPABASE_URL ||
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -184,6 +190,14 @@ function simpleHash(str) {
   return hash.toString(16);
 }
 
+function hashKeyContent(str) {
+  return crypto.createHash('sha256').update(str, 'utf8').digest('hex');
+}
+
+function limitText(value, maxLength) {
+  return String(value || '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
+}
+
 function publicUser(user) {
   return {
     userId: user.id,
@@ -205,9 +219,13 @@ function parseCookies(cookieHeader = '') {
     .reduce((cookies, part) => {
       const index = part.indexOf('=');
       if (index === -1) return cookies;
-      const key = decodeURIComponent(part.slice(0, index));
-      const value = decodeURIComponent(part.slice(index + 1));
-      cookies[key] = value;
+      try {
+        const key = decodeURIComponent(part.slice(0, index));
+        const value = decodeURIComponent(part.slice(index + 1));
+        cookies[key] = value;
+      } catch {
+        // Ignore malformed cookie fragments instead of failing the request.
+      }
       return cookies;
     }, {});
 }
@@ -310,6 +328,28 @@ function normalizeBookmarkUrl(rawUrl) {
   }
 
   return parsed.toString();
+}
+
+function normalizePublicHttpUrl(rawUrl, baseUrl = undefined) {
+  if (!rawUrl) return null;
+
+  try {
+    const parsed = new URL(String(rawUrl).trim(), baseUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+    if (isPrivateIp(parsed.hostname.toLowerCase())) return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+function isYouTubeUrl(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+    return host === 'youtube.com' || host === 'youtu.be' || host.endsWith('.youtube.com');
+  } catch {
+    return false;
+  }
 }
 
 function getDisplayName(authUser) {
@@ -535,6 +575,8 @@ app.set('trust proxy', 1);
 app.use((req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'none'; base-uri 'self'; object-src 'none'");
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   next();
@@ -622,11 +664,11 @@ app.post('/api/auth/login', async (req, res) => {
 
   try {
     if (type === 'nickname') {
-      if (!nickname || nickname.trim().length < 2) {
+      const name = limitText(nickname, MAX_NICKNAME_LENGTH);
+      if (name.length < 2) {
         return res.status(400).json({ error: '닉네임은 2글자 이상이어야 합니다.' });
       }
 
-      const name = nickname.trim();
       let user = await findUserByNickname(name);
       if (!user) user = await createUser({ nickname: name });
 
@@ -636,9 +678,14 @@ app.post('/api/auth/login', async (req, res) => {
 
     if (type === 'keyfile') {
       if (!keyContent) return res.status(400).json({ error: '키 파일 내용이 없습니다.' });
+      if (String(keyContent).length > MAX_KEY_CONTENT_LENGTH) {
+        return res.status(413).json({ error: '키 파일 내용이 너무 큽니다.' });
+      }
 
-      const hash = simpleHash(keyContent.trim());
+      const normalizedKey = keyContent.trim();
+      const hash = hashKeyContent(normalizedKey);
       let user = await findUserByKeyHash(hash);
+      if (!user) user = await findUserByKeyHash(simpleHash(normalizedKey));
       if (!user) {
         user = await createUser({
           nickname: `사용자_${uuidv4().slice(0, 6)}`,
@@ -705,16 +752,18 @@ app.post('/api/bookmarks', requireAuth, async (req, res) => {
     return res.status(400).json({ error: err.message });
   }
 
-  let finalTitle = customName?.trim() || '';
-  let finalImg = 'https://via.placeholder.com/300x180?text=No+Image';
-  const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
+  let finalTitle = limitText(customName, MAX_CUSTOM_TITLE_LENGTH);
+  let finalImg = PLACEHOLDER_IMAGE;
+  const isYoutube = isYouTubeUrl(url);
 
   if (isYoutube) {
     let videoId = '';
     if (url.includes('watch?v=')) videoId = url.split('v=')[1]?.split('&')[0];
     else if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1]?.split('?')[0];
     else videoId = url.split('/').pop()?.split('?')[0];
-    if (videoId) finalImg = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+    if (/^[a-zA-Z0-9_-]{6,128}$/.test(videoId || '')) {
+      finalImg = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+    }
   }
 
   try {
@@ -725,32 +774,39 @@ app.post('/api/bookmarks', requireAuth, async (req, res) => {
           timeout: 5000,
           httpAgent: safeHttpAgent,
           httpsAgent: safeHttpsAgent,
-          maxRedirects: 3
+          maxRedirects: 3,
+          maxContentLength: MAX_CRAWL_BYTES,
+          maxBodyLength: MAX_CRAWL_BYTES
         }
       );
-      if (ytRes.data?.title) finalTitle = ytRes.data.title;
+      if (ytRes.data?.title) finalTitle = limitText(ytRes.data.title, MAX_CUSTOM_TITLE_LENGTH);
     } else if (!finalTitle) {
       const response = await axios.get(url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
         timeout: 5000,
         httpAgent: safeHttpAgent,
         httpsAgent: safeHttpsAgent,
-        maxRedirects: 3
+        maxRedirects: 3,
+        maxContentLength: MAX_CRAWL_BYTES,
+        maxBodyLength: MAX_CRAWL_BYTES,
+        responseType: 'text',
+        transformResponse: [data => data]
       });
       const $ = cheerio.load(response.data);
 
-      finalTitle = $('meta[property="og:title"]').attr('content') || $('title').text() || '';
+      finalTitle = limitText(
+        $('meta[property="og:title"]').attr('content') || $('title').text(),
+        MAX_CUSTOM_TITLE_LENGTH
+      );
       const ogImg = $('meta[property="og:image"]').attr('content');
-      if (ogImg) {
-        finalImg = ogImg;
+      const safeOgImg = normalizePublicHttpUrl(ogImg, url);
+      if (safeOgImg) {
+        finalImg = safeOgImg;
       } else {
         let iconHref = $('link[rel="icon"]').attr('href')
           || $('link[rel="shortcut icon"]').attr('href');
-        if (iconHref && !iconHref.startsWith('http')) {
-          const origin = new URL(url).origin;
-          iconHref = origin + (iconHref.startsWith('/') ? '' : '/') + iconHref;
-        }
-        if (iconHref) finalImg = iconHref;
+        const safeIconHref = normalizePublicHttpUrl(iconHref, url);
+        if (safeIconHref) finalImg = safeIconHref;
       }
     }
   } catch (err) {
@@ -758,12 +814,13 @@ app.post('/api/bookmarks', requireAuth, async (req, res) => {
   }
 
   if (!finalTitle) finalTitle = '새로운 북마크';
+  finalImg = normalizePublicHttpUrl(finalImg) || PLACEHOLDER_IMAGE;
 
   const now = new Date();
   const row = {
     id: uuidv4(),
     user_id: req.user.userId,
-    title: finalTitle.trim(),
+    title: limitText(finalTitle, MAX_CUSTOM_TITLE_LENGTH),
     url,
     thumbnail_url: finalImg,
     year: now.getFullYear(),
